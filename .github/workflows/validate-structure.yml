@@ -1,0 +1,70 @@
+name: EventHub Structure
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check files and directories
+        run: |
+          REQUIRED_FILES=(
+            "app.py"
+            "requirements.txt"
+            "data/users.json"
+            "data/events.json"
+            "data/orders.json"
+          )
+
+          REQUIRED_DIRS=(
+            "templates"
+            "static"
+            "data"
+          )
+
+          for file in "${REQUIRED_FILES[@]}"; do
+            [ -f "$file" ] || { echo "Missing file: $file"; exit 1; }
+          done
+
+          for dir in "${REQUIRED_DIRS[@]}"; do
+            [ -d "$dir" ] || { echo "Missing directory: $dir"; exit 1; }
+          done
+
+      - name: Validate JSON
+        run: |
+          python3 <<EOF
+          import json, sys
+
+          files = [
+            "data/users.json",
+            "data/events.json",
+            "data/orders.json"
+          ]
+
+          for f in files:
+            try:
+              with open(f, encoding="utf-8") as file:
+                data = json.load(file)
+            except Exception as e:
+              print(f"Invalid JSON in {f}: {e}")
+              sys.exit(1)
+
+            if not isinstance(data, list):
+              print(f"{f} must be a list")
+              sys.exit(1)
+
+            if not all(isinstance(x, dict) for x in data):
+              print(f"{f} must contain objects")
+              sys.exit(1)
+
+          print("All JSON valid")
+          EOF
